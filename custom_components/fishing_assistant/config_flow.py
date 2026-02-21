@@ -12,7 +12,7 @@ from .fish_profiles import get_fish_species
 class FishingAssistantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle Fishing Assistant config flow."""
 
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(self, user_input=None):
         errors = {}

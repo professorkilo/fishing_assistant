@@ -3,6 +3,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import config_validation as cv
 from homeassistant.core import HomeAssistant
 from .const import DOMAIN
+from .helpers.location import resolve_location_metadata_sync
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["sensor"]
@@ -20,6 +21,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = entry.data
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    return True
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate old config entries to the latest version."""
+    _LOGGER.debug("Migrating entry %s from version %s", entry.entry_id, entry.version)
+
+    if entry.version == 1:
+        lat = entry.data.get("latitude")
+        lon = entry.data.get("longitude")
+
+        if lat is None or lon is None:
+            _LOGGER.warning(
+                "Skipping timezone/elevation migration for entry %s due to missing coordinates",
+                entry.entry_id,
+            )
+            hass.config_entries.async_update_entry(entry, version=2)
+            return True
+
+        metadata = await hass.async_add_executor_job(resolve_location_metadata_sync, lat, lon)
+        new_data = dict(entry.data)
+        new_data["timezone"] = metadata.get("timezone", entry.data.get("timezone"))
+        new_data["elevation"] = metadata.get("elevation", entry.data.get("elevation"))
+
+        hass.config_entries.async_update_entry(entry, data=new_data, version=2)
+        _LOGGER.info("Successfully migrated entry %s to version 2", entry.entry_id)
+
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

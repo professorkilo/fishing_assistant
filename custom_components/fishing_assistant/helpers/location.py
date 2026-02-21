@@ -7,7 +7,12 @@ def resolve_location_metadata_sync(lat: float, lon: float) -> dict:
     from homeassistant.util import dt as dt_util
 
     tf = TimezoneFinder()
-    timezone = tf.timezone_at(lat=lat, lng=lon) or dt_util.DEFAULT_TIME_ZONE
+    timezone = (
+        tf.certain_timezone_at(lat=lat, lng=lon)
+        or tf.timezone_at(lat=lat, lng=lon)
+        or tf.closest_timezone_at(lat=lat, lng=lon)
+        or str(dt_util.DEFAULT_TIME_ZONE)
+    )
     elevation = 500
 
     try:
